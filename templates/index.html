@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Upload and Query</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        input[type="file"], 
+        input[type="text"] {
+            margin-bottom: 20px;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: #fff;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .response, .history {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e2e3e5;
+            border-radius: 4px;
+        }
+
+        .history-item {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 10px;
+        }
+
+        .history-item .query, .history-item .response {
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 20px;
+            position: relative;
+            max-width: 75%;
+        }
+
+        .history-item .query {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+
+        .history-item .response {
+            background-color: #d1e7dd;
+            align-self: flex-end;
+        }
+
+        .history-item .query::before, .history-item .response::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            width: 0;
+            height: 0;
+            border: 10px solid transparent;
+        }
+
+        .history-item .query::before {
+            left: -20px;
+            border-right-color: #f1f1f1;
+        }
+
+        .history-item .response::before {
+            right: -20px;
+            border-left-color: #d1e7dd;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Conversational ChatBot</h1>
+        <div id="history" class="history">
+            <div id="historyItems"></div>
+        </div>
+
+        <h1>Upload Image and Ask a Question</h1>
+        <form id="uploadForm">
+            <label for="image">Select Image:</label>
+            <input type="file" name="image" id="image" accept="image/*" required>
+            
+            <label for="query">Enter Your Query:</label>
+            <input type="text" name="query" id="query" placeholder="Ask a question about the image" required>
+            
+            <button type="submit">Submit</button>
+        </form>
+
+        <div id="response" class="response" style="display: none;"></div>
+    </div>
+
+    <script>
+        const messages = [];
+        document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(this);
+            const responseDiv = document.getElementById('response');
+            const historyItemsDiv = document.getElementById('historyItems');
+            responseDiv.style.display = 'none';
+            responseDiv.innerHTML = '';
+
+            try {
+                const response = await fetch('/upload_image', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+               const stream = response.body.getReader();
+               const decoder = new TextDecoder();
+                // responseDiv.style.display = 'block';
+                // responseDiv.innerHTML = <strong>Response:</strong> ${result.response};
+                
+               
+                const newHistoryItem = document.createElement('div');
+                newHistoryItem.classList.add('history-item');
+                newHistoryItem.innerHTML = `<div class="query"><strong>Query:</strong><br> ${formData.get('query')}</div><div class="response"><strong>Response:</strong><br></div>`;
+                historyItemsDiv.appendChild(newHistoryItem);
+                const responseDiv = newHistoryItem.querySelector(".response");
+
+            
+                while (true) {
+                    const { done, value } = await stream.read();
+                    if (done) break;
+                    responseDiv.innerHTML += (decoder.decode(value));
+                }
+             
+                document.getElementById('query').value = '';
+            } catch (error) {
+                responseDiv.style.display = 'block';
+                responseDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        });
+
+    
+        async function loadHistory() {
+            try {
+                const response = await fetch('/get_history', { method: 'GET' });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const historyItemsDiv = document.getElementById('historyItems');
+                historyItemsDiv.innerHTML = '';
+
+                result.conversation_history.forEach(item => {
+                    const historyItem = document.createElement('div');
+                    historyItem.classList.add('history-item');
+                    historyItem.innerHTML = `<div class="query"><strong>Query:</strong><br> ${item.query}</div><div class="response"><strong>Response:</strong><br> ${item.response}</div>`;
+                    historyItemsDiv.appendChild(historyItem);
+                });
+            } catch (error) {
+                console.error('Failed to load history:', error);
+            }
+        }
+
+        window.onload = loadHistory;
+    </script>
+</body>
+</html>
