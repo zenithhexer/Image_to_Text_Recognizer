@@ -91,5 +91,5 @@ def get_history():
     conversation_history = session.get('conversation_history', [])
     return jsonify({'conversation_history': conversation_history})
 
-# if __name__ == '_main_':
+
 app.run(debug=True)
