@@ -58,6 +58,10 @@
             background-color: #218838;
         }
 
+        button:disabled {
+            opacity: 50%;
+        }
+
         .response, .history {
             margin-top: 20px;
             padding: 10px;
@@ -107,7 +111,6 @@
             right: -20px;
             border-left-color: #d1e7dd;
         }
-
     </style>
 </head>
 <body>
@@ -125,7 +128,7 @@
             <label for="query">Enter Your Query:</label>
             <input type="text" name="query" id="query" placeholder="Ask a question about the image" required>
             
-            <button type="submit">Submit</button>
+            <button type="submit" id="submit-btn">Ask</button>
         </form>
 
         <div id="response" class="response" style="display: none;"></div>
@@ -133,6 +136,11 @@
 
     <script>
         const messages = [];
+        /**
+         * @type {HTMLButtonElement}
+         */
+        const submitBtn = document.querySelector("#submit-btn");
+
         document.getElementById('uploadForm').addEventListener('submit', async function(event) {
             event.preventDefault();
             
@@ -143,6 +151,8 @@
             responseDiv.innerHTML = '';
 
             try {
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Generating Response...";
                 const response = await fetch('/upload_image', {
                     method: 'POST',
                     body: formData
@@ -150,14 +160,13 @@
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Try Again";
                 }
 
                const stream = response.body.getReader();
                const decoder = new TextDecoder();
-                // responseDiv.style.display = 'block';
-                // responseDiv.innerHTML = <strong>Response:</strong> ${result.response};
-                
-               
+             
                 const newHistoryItem = document.createElement('div');
                 newHistoryItem.classList.add('history-item');
                 newHistoryItem.innerHTML = `<div class="query"><strong>Query:</strong><br> ${formData.get('query')}</div><div class="response"><strong>Response:</strong><br></div>`;
@@ -170,7 +179,10 @@
                     if (done) break;
                     responseDiv.innerHTML += (decoder.decode(value));
                 }
-             
+
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Ask More";
+
                 document.getElementById('query').value = '';
             } catch (error) {
                 responseDiv.style.display = 'block';
